@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1c2125">
+<title>Levantamiento Nivel 02</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<script src="config.js"></script>
+<style>
+/* Herramienta de campo: plano a pantalla completa, pestañas por servicio, panel de capas sobre el plano */
+:root{
+  color-scheme:light;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#f1f0ec; --panel:#ffffff; --ink:#1c2125; --muted:#5b636a; --line:#d9d7d0;
+  --paper:#ffffff; --pend:#f5b700; --pend-ink:#1c1600; --ok:#1f8f4e; --ok-ink:#ffffff; --ok-bg:#e1f1e7; --pend-bg:#fdf3cf;
+  --accent:#1c2125; --accent-ink:#ffffff; --focus:#1d6fe0;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-tag:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#141618; --panel:#1e2225; --ink:#ebeae6; --muted:#a1a7ac; --line:#30363b;
+  --ok-bg:#16301f; --pend-bg:#3a3010; --accent:#ebeae6; --accent-ink:#141618; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+img{max-width:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.4}
+.wrap{max-width:1200px;margin:0 auto;padding-block:12px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px}
+h1{font-family:var(--f-display);font-weight:700;font-size:1.7rem;line-height:1.05;margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:700;font-size:1.2rem;margin:0}
+.eyebrow{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.muted{color:var(--muted)}
+.head{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:end;justify-content:space-between}
+.head .t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.prog{display:flex;flex-direction:column;gap:5px;flex:1 1 220px;max-width:380px}
+.bar{height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
+.count{font-variant-numeric:tabular-nums;font-weight:700}
+.notice{background:var(--pend-bg);border-radius:10px;padding:10px 14px;font-size:.95rem}
+
+/* Pestañas */
+.tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;border:2px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:9px 14px;font:700 1rem var(--f-body);cursor:pointer;display:flex;gap:8px;align-items:center;min-height:46px}
+.tab small{font:600 .8rem var(--f-tag);color:var(--muted);font-variant-numeric:tabular-nums}
+.tab[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.tab[aria-selected="true"] small{color:var(--bg);opacity:.75}
+
+.toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.tbtn{display:inline-flex;align-items:center;gap:8px;border:2px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:8px 14px;font:600 .95rem var(--f-body);cursor:pointer;min-height:44px}
+.tbtn svg{width:20px;height:20px}
+.tbtn[aria-expanded="true"]{border-color:var(--ink)}
+
+/* Visor */
+.vp{position:relative;height:min(70vh,760px);min-height:320px;background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.vp.drag{cursor:grabbing}
+.vp.full{position:fixed;inset:0;height:auto;min-height:0;border-radius:0;border:0;z-index:15}
+.vp>img{position:absolute;left:0;top:0;width:4800px;height:3914px;max-width:none;transform-origin:0 0;will-change:transform;pointer-events:none;-webkit-user-drag:none}
+.pins{position:absolute;inset:0;pointer-events:none;--lf:12px}
+.pin{position:absolute;left:0;top:0;width:0;height:0;z-index:2}
+.pin.box{z-index:1}
+.pin.box b{border-radius:3px;--bs:calc(var(--sz)*.72);width:var(--bs);height:var(--bs);left:calc(var(--bs)/-2);top:calc(var(--bs)/-2);font-size:calc(var(--sz)*.4)}
+.pin.box em{left:auto;right:calc(var(--sz)*.36 + 4px)}
+.pin.sel{z-index:3}
+.pin b{position:absolute;left:calc(var(--sz)/-2);top:calc(var(--sz)/-2);width:var(--sz);height:var(--sz);border-radius:50%;background:var(--c,var(--pend));border:2px solid #1c2125;box-shadow:0 0 0 2px #fff;display:flex;align-items:center;justify-content:center;color:#fff;font:700 calc(var(--sz)*.5)/1 var(--f-body)}
+.mode-avance .pin b{background:var(--pend);color:var(--pend-ink)}
+.mode-avance .pin.done b{background:var(--ok);color:var(--ok-ink)}
+.pin.done b::after{content:"✓"}
+.mode-cat .pin.done b{box-shadow:0 0 0 2px #fff,0 0 0 5px var(--ok)}
+.pin em{display:none;position:absolute;left:calc(var(--sz)/2 + 4px);top:0;transform:translateY(-50%);font:600 var(--lf)/1 var(--f-tag);font-style:normal;white-space:nowrap;background:#1c2125;color:#fff;padding:3px 5px;border-radius:4px}
+.pins.lbl .pin em,.pins.big .pin em{display:block}
+.pin.sel b{box-shadow:0 0 0 3px #fff,0 0 0 7px var(--focus)}
+.pin.sel em{display:block;background:var(--focus)}
+.ctrls{position:absolute;right:calc(10px + env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:8px;z-index:2}
+.ctrls button,.nextbtn,.vpbtn{width:48px;height:48px;border-radius:10px;border:1px solid #c9c7c0;background:#ffffffee;color:#1c2125;font:700 1.4rem/1 var(--f-body);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px #0002}
+.ctrls svg,.vpbtn svg{width:22px;height:22px}
+.vpbtn{position:absolute;left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));z-index:3;width:auto;padding:0 12px;gap:6px;font-size:.95rem}
+.nextbtn{position:absolute;left:calc(10px + env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));width:auto;padding:0 16px;gap:8px;font-size:1rem;background:var(--pend);border-color:#1c2125;z-index:2}
+.nextbtn svg{width:22px;height:22px}
+.hint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:#1c2125e6;color:#fff;padding:6px 12px;border-radius:999px;font-size:.85rem;pointer-events:none;white-space:nowrap;z-index:2;transition:opacity .4s}
+
+/* Panel de capas */
+.panel{position:absolute;left:calc(10px + env(safe-area-inset-left,0px));top:calc(66px + env(safe-area-inset-top,0px));z-index:4;width:min(340px,calc(100% - 80px));max-height:calc(100% - 80px);overflow:auto;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px #0003;padding:14px;display:flex;flex-direction:column;gap:14px;cursor:auto;touch-action:pan-y}
+.panel h3{margin:0;font:700 .72rem var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.prow{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sw{position:relative;width:46px;height:28px;flex:none}
+.sw input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.sw span{position:absolute;inset:0;border-radius:14px;background:var(--line);transition:background .2s;pointer-events:none}
+.sw span::after{content:"";position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #0004;transition:transform .2s}
+.sw input:checked+span{background:var(--ok)}
+.sw input:checked+span::after{transform:translateX(18px)}
+.sw input:focus-visible+span{outline:3px solid var(--focus);outline-offset:2px}
+.seg{display:flex;border:2px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1;border:0;background:var(--panel);color:var(--ink);font:600 .9rem var(--f-body);padding:8px 10px;cursor:pointer;font-variant-numeric:tabular-nums}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.cats{display:flex;flex-direction:column;gap:2px;margin:0;padding:0;list-style:none}
+.cats label{display:grid;grid-template-columns:22px 16px 1fr auto;gap:8px;align-items:center;padding:7px 4px;border-radius:8px;cursor:pointer}
+.cats label:hover{background:var(--bg)}
+.cats input{width:18px;height:18px;margin:0;accent-color:var(--ink)}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid #1c2125;background:var(--c)}
+.cats .n{font:600 .95rem var(--f-tag);font-variant-numeric:tabular-nums;text-align:right}
+.cats .n small{display:block;font:500 .72rem var(--f-body);color:var(--muted)}
+.ptot{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px;font-weight:700}
+.ptot span:last-child{font-family:var(--f-tag)}
+.links{display:flex;gap:12px}
+.links button{border:0;background:none;color:var(--focus);font:600 .9rem var(--f-body);padding:4px 0;cursor:pointer}
+
+/* Ficha */
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--panel);border-top:1px solid var(--line);border-radius:16px 16px 0 0;box-shadow:0 -6px 24px #0003;padding:14px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet .in{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.sheet .top{display:flex;justify-content:space-between;align-items:start;gap:12px}
+.tag{font-family:var(--f-tag);font-weight:600;font-size:1.9rem;line-height:1.05;letter-spacing:.02em}
+.chip{display:inline-block;font-size:.8rem;font-weight:700;padding:3px 9px;border-radius:999px;width:max-content}
+.chip.ok{background:var(--ok-bg);color:var(--ok)}
+.chip.pend{background:var(--pend-bg);color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:12px;font:700 1.15rem var(--f-body);padding:14px 18px;cursor:pointer;min-height:60px}
+.btn svg{width:26px;height:26px;flex:none}
+.btn-cam{background:var(--accent);color:var(--accent-ink);width:100%}
+.btn-sec{background:transparent;color:var(--ink);border:2px solid var(--line);min-height:44px;padding:8px 14px;font-size:.95rem}
+.btn[disabled]{opacity:.55;cursor:wait}
+.x{border:0;background:transparent;color:var(--muted);font:600 1rem var(--f-body);padding:8px;cursor:pointer;min-height:44px}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap}
+.thumbs button{padding:0;border:0;background:none;cursor:pointer;border-radius:6px;overflow:hidden}
+.thumbs img{width:72px;height:72px;object-fit:cover;display:block;background:var(--line)}
+.retry{display:flex;gap:8px;flex-wrap:wrap}
+.retry .btn{flex:1 1 160px}
+.warn{background:var(--pend-bg);border-radius:10px;padding:10px 12px;font-size:.95rem}
+button:focus-visible,input:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+/* Lista */
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.search{flex:1 1 180px;min-width:0;font:600 1.05rem var(--f-tag);padding:11px 13px;border-radius:10px;border:2px solid var(--line);background:var(--panel);color:var(--ink)}
+.list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.list button{width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--pend);border-radius:10px;padding:10px 12px;cursor:pointer;color:var(--ink);display:flex;flex-direction:column;gap:2px;min-height:56px}
+.list button.done{border-left-color:var(--ok)}
+.list .lt{font:600 1.1rem var(--f-tag)}
+.list .ls{font-size:.85rem;color:var(--muted)}
+.empty{color:var(--muted);padding:8px 0}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(14px + env(safe-area-inset-top,0px));background:#1c2125;color:#fff;padding:12px 18px;border-radius:10px;font-weight:600;z-index:40;max-width:calc(100% - 32px);text-align:center}
+.lb{position:fixed;inset:0;background:rgba(10,12,14,.94);z-index:30;display:flex;flex-direction:column;gap:12px;padding:calc(16px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.lb img{flex:1;min-height:0;object-fit:contain;width:100%;max-width:100%}
+.lb .row2{display:flex;gap:8px;justify-content:space-between;align-items:center;color:#f2f2f2}
+.lb .btn-sec{color:#f2f2f2;border-color:#555}
+@media (prefers-reduced-motion: reduce){.bar>i,.hint,.sw span,.sw span::after{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div class="t">
+      <span class="eyebrow" id="eyebrow">Nivel 02 · Levantamiento de instalaciones</span>
+      <h1 id="svcTitle">Detección de incendios</h1>
+    </div>
+    <div class="prog">
+      <div class="bar"><i id="barFill"></i></div>
+      <span class="count" id="countText">Cargando…</span>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Servicios" id="tabs"></div>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <div class="toolbar">
+    <button type="button" class="tbtn" id="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Exportar plano PNG</button>
+  </div>
+
+  <div class="vp" id="vp" aria-label="Plano con dispositivos">
+    <img id="plano" alt="Plano del nivel 02" draggable="false">
+    <div class="pins" id="pins"></div>
+    <button type="button" class="vpbtn" id="panelBtn" aria-expanded="false" aria-controls="panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5-9-5zM3 13l9 5 9-5M3 18l9 5 9-5" transform="translate(0 -1.5)"/></svg>Capas y conteo</button>
+    <div class="panel" id="panel" hidden>
+      <div class="prow"><h2>Capas y conteo</h2><button type="button" class="x" id="panelClose">Cerrar</button></div>
+      <div class="prow"><label for="optLabels">Mostrar etiquetas</label><span class="sw"><input type="checkbox" id="optLabels" role="switch"><span></span></span></div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <h3>Tamaño de etiquetas</h3>
+        <div class="seg" id="optSize" role="group" aria-label="Tamaño de etiquetas">
+          <button type="button" data-v="10">Chico</button><button type="button" data-v="12">Mediano</button><button type="button" data-v="15">Grande</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <h3>Colorear por</h3>
+        <div class="seg" id="optMode" role="group" aria-label="Colorear por">
+          <button type="button" data-v="avance">Avance de fotos</button><button type="button" data-v="cat">Categoría</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="prow"><h3>Dispositivos</h3><div class="links"><button type="button" id="catAll">Todos</button><button type="button" id="catNone">Ninguno</button></div></div>
+        <ul class="cats" id="cats"></ul>
+        <div class="ptot"><span>Total visibles</span><span id="totVis"></span></div>
+      </div>
+    </div>
+    <div class="hint" id="hint">Pellizca para hacer zoom · arrastra para moverte</div>
+    <div class="ctrls">
+      <button type="button" id="zIn" aria-label="Acercar">+</button>
+      <button type="button" id="zOut" aria-label="Alejar">−</button>
+      <button type="button" id="zFit" aria-label="Ver todo el plano"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+      <button type="button" id="zFull" aria-label="Pantalla completa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5"/></svg></button>
+    </div>
+    <button type="button" class="nextbtn" id="nextBtn" hidden></button>
+  </div>
+
+  <div class="tools">
+    <input class="search" id="q" type="search" autocomplete="off" placeholder="Buscar, ej. N2CAM04" aria-label="Buscar dispositivo">
+    <div class="seg" role="group" aria-label="Filtro" style="flex:0 0 auto">
+      <button type="button" id="fPend" aria-pressed="true">Faltan</button>
+      <button type="button" id="fDone" aria-pressed="false">Listos</button>
+    </div>
+  </div>
+  <ul class="list" id="list"></ul>
+  <p class="empty" id="listEmpty" hidden></p>
+</div>
+
+<div class="sheet" id="sheet" hidden role="dialog" aria-label="Dispositivo seleccionado">
+  <div class="in">
+    <div class="top">
+      <div>
+        <div class="tag" id="sTag"></div>
+        <div class="muted" id="sTipo"></div>
+      </div>
+      <button type="button" class="x" id="sClose">Cerrar</button>
+    </div>
+    <span class="chip" id="sChip"></span>
+    <div class="thumbs" id="sThumbs"></div>
+    <div class="warn" id="sWarn" hidden>No se pudo subir la foto. Muévete a donde tengas mejor señal y toca «Reintentar».</div>
+    <div class="retry" id="sRetry" hidden>
+      <button type="button" class="btn btn-cam" id="rRetry">Reintentar subida</button>
+      <button type="button" class="btn btn-sec" id="rSave">Guardar en el teléfono</button>
+    </div>
+    <button type="button" class="btn btn-cam" id="sCam"></button>
+  </div>
+</div>
+
+<input type="file" id="cam" accept="image/*" capture="environment" hidden>
+
+<div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="Foto">
+  <div class="row2"><strong id="lbTitle" style="font-family:var(--f-tag)"></strong><button type="button" class="btn btn-sec" id="lbClose">Cerrar</button></div>
+  <img id="lbImg" alt="">
+</div>
+
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+/* ===================== DATOS DE LOS PLANOS =====================
+   Etiquetas y posiciones tomadas de las capas de cada DWG.
+   Cada dispositivo: [clave, etiqueta, categoría, x, y, (claves anteriores)]
+   - clave: une el dispositivo con sus fotos en Drive (no la cambies si ya tiene fotos)
+   - etiqueta: el texto que se ve; esta sí la puedes cambiar
+   - x, y: posición relativa en el plano (0 a 1)
+   - claves anteriores: fotos tomadas con la nomenclatura vieja que se suman a este dispositivo */
+const SERVICIOS = [
+  { id: 'dh', nombre: 'Detección de incendios', corto: 'Detección', plano: 'plano-deteccion.png',
+    cats: [
+      ["SH", "Sensor de humo", "#2563eb"],
+      ["SC", "Sensor de calor", "#f97316"],
+      ["DG", "Detector de gas", "#0e9fb8"],
+      ["BEM", "Bocina con estrobo (muro)", "#c026d3"],
+      ["BEP", "Bocina con estrobo (plafón)", "#9333ea"],
+      ["EM", "Estación manual", "#16a34a"],
+      ["MC", "Módulo de control", "#dc2626"],
+      ["MA", "Módulo aislador de fallas", "#92400e"],
+      ["MM", "Módulo monitor", "#db2777"]
+    ],
+    disp: [
+      ["S-N2DH01", "S-N2DH01", "SH", 0.14221, 0.16121, ["SH-010"]],
+      ["S-N2DH03", "S-N2DH03", "SH", 0.22496, 0.19336, ["SH-008"]],
+      ["S-N2DH04", "S-N2DH04", "SH", 0.24982, 0.21093, ["SH-007"]],
+      ["S-N2DH05", "S-N2DH05", "SH", 0.28672, 0.17057, ["SH-006"]],
+      ["S-N2DH06", "S-N2DH06", "SH", 0.28676, 0.20821, ["SH-005"]],
+      ["S-N2DH07", "S-N2DH07", "SH", 0.31604, 0.27206, ["SH-004"]],
+      ["S-N2DH08", "S-N2DH08", "SH", 0.37944, 0.27206, ["SH-003"]],
+      ["S-N2DH09", "S-N2DH09", "SH", 0.37944, 0.39659, ["SH-011"]],
+      ["S-N2DH10", "S-N2DH10", "SH", 0.27293, 0.46445, ["SH-012"]],
+      ["S-N2DH12", "S-N2DH12", "SH", 0.15703, 0.48941, ["SH-013"]],
+      ["S-N2DH13", "S-N2DH13", "SH", 0.13527, 0.51609, ["SH-014"]],
+      ["S-N2DH14", "S-N2DH14", "SH", 0.3167, 0.63837, ["SH-015"]],
+      ["S-N2DH15", "S-N2DH15", "SH", 0.25147, 0.63837, ["SH-016"]],
+      ["S-N2DH16", "S-N2DH16", "SH", 0.17298, 0.63863, ["SH-017"]],
+      ["S-N2DH17", "S-N2DH17", "SH", 0.15851, 0.7411, ["SH-023"]],
+      ["S-N2DH18", "S-N2DH18", "SH", 0.21698, 0.7411, ["SH-019"]],
+      ["S-N2DH19", "S-N2DH19", "SH", 0.26752, 0.7411, ["SH-018"]],
+      ["S-N2DH20", "S-N2DH20", "SH", 0.17675, 0.8422, ["SH-021"]],
+      ["S-N2DH21", "S-N2DH21", "SH", 0.26749, 0.84253, ["SH-020"]],
+      ["S-N2DH23", "S-N2DH23", "SH", 0.39453, 0.59319, ["SH-022"]],
+      ["S-N2DH24", "S-N2DH24", "SH", 0.39453, 0.49545, ["SH-024"]],
+      ["S-N2DH25", "S-N2DH25", "SH", 0.39453, 0.46248, ["SH-025"]],
+      ["S-N2DH26", "S-N2DH26", "SH", 0.43755, 0.42055, ["SH-001-B"]],
+      ["S-N2DH28", "S-N2DH28", "SH", 0.4314, 0.32817, ["SH-001"]],
+      ["S-N2DH30", "S-N2DH30", "SH", 0.44411, 0.17354, ["SH-002"]],
+      ["S-N2DH31", "S-N2DH31", "SH", 0.50468, 0.24257, ["SH-026"]],
+      ["S-N2DH32", "S-N2DH32", "SH", 0.56901, 0.19036, ["SH-027"]],
+      ["S-N2DH33", "S-N2DH33", "SH", 0.56925, 0.30669, ["SH-028"]],
+      ["S-N2DH34", "S-N2DH34", "SH", 0.60899, 0.21767, ["SH-034"]],
+      ["S-N2DH35", "S-N2DH35", "SH", 0.65151, 0.21785, ["SH-035"]],
+      ["S-N2DH36", "S-N2DH36", "SH", 0.69468, 0.21767, ["SH-036"]],
+      ["S-N2DH37", "S-N2DH37", "SH", 0.74106, 0.2176, ["SH-037"]],
+      ["S-N2DH38", "S-N2DH38", "SH", 0.84242, 0.20623, ["SH-038"]],
+      ["S-N2DH39", "S-N2DH39", "SH", 0.81175, 0.23561, ["SH-041"]],
+      ["S-N2DH40", "S-N2DH40", "SH", 0.81172, 0.2749, ["SH-042"]],
+      ["S-N2DH41", "S-N2DH41", "SH", 0.84242, 0.25868, ["SH-039"]],
+      ["S-N2DH42", "S-N2DH42", "SH", 0.87692, 0.25861, ["SH-040"]],
+      ["S-N2DH44", "S-N2DH44", "SH", 0.81726, 0.33905, ["SH-043"]],
+      ["S-N2DH45", "S-N2DH45", "SH", 0.65154, 0.26861, ["SH-033"]],
+      ["S-N2DH46", "S-N2DH46", "SH", 0.60896, 0.32484, ["SH-032"]],
+      ["S-N2DH47", "S-N2DH47", "SH", 0.65151, 0.32563, ["SH-030"]],
+      ["S-N2DH48", "S-N2DH48", "SH", 0.69468, 0.3253, ["SH-031"]],
+      ["S-N2DH49", "S-N2DH49", "SH", 0.73106, 0.32088, ["SH-044"]],
+      ["S-N2DH51", "S-N2DH51", "SH", 0.64705, 0.36403, ["SH-029"]],
+      ["S-N2DH52", "S-N2DH52", "SH", 0.60387, 0.40878, ["SH-045"]],
+      ["S-N2DH53", "S-N2DH53", "SH", 0.56131, 0.46823, ["SH-052"]],
+      ["S-N2DH54", "S-N2DH54", "SH", 0.6325, 0.46816, ["SH-051"]],
+      ["S-N2DH55", "S-N2DH55", "SH", 0.69353, 0.46823, ["SH-050"]],
+      ["S-N2DH56", "S-N2DH56", "SH", 0.74041, 0.43152, ["SH-046"]],
+      ["S-N2DH57", "S-N2DH57", "SH", 0.77242, 0.43159, ["SH-047"]],
+      ["S-N2DH58", "S-N2DH58", "SH", 0.74008, 0.50399, ["SH-048"]],
+      ["S-N2DH59", "S-N2DH59", "SH", 0.77242, 0.50366, ["SH-049"]],
+      ["S-N2DH60", "S-N2DH60", "SH", 0.86156, 0.55482, ["SH-060"]],
+      ["S-N2DH61", "S-N2DH61", "SH", 0.86156, 0.61331, ["SH-059"]],
+      ["S-N2DH62", "S-N2DH62", "SH", 0.86156, 0.67746, ["SH-061"]],
+      ["S-N2DH63", "S-N2DH63", "SH", 0.76456, 0.6294, ["SH-058"]],
+      ["S-N2DH64", "S-N2DH64", "SH", 0.67379, 0.6294, ["SH-057"]],
+      ["S-N2DH65", "S-N2DH65", "SH", 0.57687, 0.6294, ["SH-056"]],
+      ["S-N2DH66", "S-N2DH66", "SH", 0.4821, 0.58749, ["SH-055"]],
+      ["S-N2DH67", "S-N2DH67", "SH", 0.4821, 0.67246, ["SH-054"]],
+      ["S-N2DH68", "S-N2DH68", "SH", 0.50725, 0.7209, ["SH-053"]],
+      ["S-NSDH02", "S-NSDH02", "SH", 0.18538, 0.19333, ["SH-009"]],
+      ["H-N2DH11", "H-N2DH11", "SC", 0.18151, 0.43385, ["SC-003"]],
+      ["H-N2DH27", "H-N2DH27", "SC", 0.43755, 0.37338, ["SC-001"]],
+      ["H-N2DH29", "H-N2DH29", "SC", 0.44428, 0.20932, ["SC-002"]],
+      ["H-S-N2DH22", "H-S-N2DH22", "SC", 0.3945, 0.7209, ["SC-004"]],
+      ["H-S-N2DH43", "H-S-N2DH43", "SC", 0.86803, 0.33905, ["SC-005"]],
+      ["DG-N2DH01", "DG-N2DH01", "DG", 0.29698, 0.57222, ["DH-DG-001"]],
+      ["DG-N2DH02", "DG-N2DH02", "DG", 0.33846, 0.68236, ["DH-DG-003"]],
+      ["DG-N2DH03", "DG-N2DH03", "DG", 0.29057, 0.76781, ["DH-DG-002"]],
+      ["BEM-N2DH01", "BEM-N2DH01", "BEM", 0.33394, 0.26175],
+      ["BEM-N2DH02", "BEM-N2DH02", "BEM", 0.19757, 0.47161],
+      ["BEM-N2DH03", "BEM-N2DH03", "BEM", 0.29701, 0.59306],
+      ["BEM-N2DH04", "BEM-N2DH04", "BEM", 0.34712, 0.67202],
+      ["BEM-N2DH05", "BEM-N2DH05", "BEM", 0.30763, 0.76777],
+      ["BEM-N2DH06", "BEM-N2DH06", "BEM", 0.61052, 0.54544],
+      ["BEM-N2DH07", "BEM-N2DH07", "BEM", 0.54994, 0.33907],
+      ["BEP-N2DH01", "BEP-N2DH01", "BEP", 0.73106, 0.36403],
+      ["A-EMDH01", "A-EMDH01", "EM", 0.33394, 0.25123, ["DH-BE-001"]],
+      ["A-EMDH02", "A-EMDH02", "EM", 0.19754, 0.46104, ["DH-BE-004"]],
+      ["A-EMDH03", "A-EMDH03", "EM", 0.33846, 0.67206, ["DH-BE-008"]],
+      ["A-EMDH04", "A-EMDH04", "EM", 0.29897, 0.76781, ["DH-BE-007"]],
+      ["A-EMDH05", "A-EMDH05", "EM", 0.60189, 0.54545, ["DH-BE-005"]],
+      ["A-EMDH06", "A-EMDH06", "EM", 0.73083, 0.37725, ["DH-BE-003", "DH-EM-001"]],
+      ["A-EMDH07", "A-EMDH07", "EM", 0.55849, 0.33909, ["DH-BE-002"]],
+      ["A-EMDH08", "A-EMDH08", "EM", 0.29698, 0.58253, ["DH-BE-006"]],
+      ["C-N2DH01", "C-N2DH01", "MC", 0.46932, 0.362, ["DH-MC-002"]],
+      ["C-N2DH02", "C-N2DH02", "MC", 0.46093, 0.36201, ["DH-MC-001"]],
+      ["IM-N2DH01", "IM-N2DH01", "MA", 0.46093, 0.35166, ["DH-MA-001"]],
+      ["M-N2DH01", "M-N2DH01", "MM", 0.28859, 0.58253, ["DH-MM-001"]],
+      ["M-N2DH02", "M-N2DH02", "MM", 0.29897, 0.77814, ["DH-MM-003"]],
+      ["M-N2DH03", "M-N2DH03", "MM", 0.35551, 0.67202, ["DH-MM-002"]]
+    ] },
+  { id: 'cctv', nombre: 'CCTV', corto: 'CCTV', plano: 'plano-cctv.png',
+    cats: [
+      ["CAM", "Cámara CCTV", "#2563eb"],
+      ["CGE", "Cámara CCTV Gesell", "#f97316"],
+      ["CPS", "Cámara CCTV Prom. Salud", "#16a34a"]
+    ],
+    disp: [
+      ["N2CAM01", "N2CAM01", "CAM", 0.32817, 0.14426],
+      ["N2CAM02", "N2CAM02", "CAM", 0.27082, 0.2231],
+      ["N2CAM03", "N2CAM03", "CAM", 0.34298, 0.38495],
+      ["N2CAM04", "N2CAM04", "CAM", 0.32751, 0.53026],
+      ["N2CAM05", "N2CAM05", "CAM", 0.3171, 0.75163],
+      ["N2CAM06", "N2CAM06", "CAM", 0.51364, 0.69993],
+      ["N2CAM07", "N2CAM07", "CAM", 0.58209, 0.23661],
+      ["N2CAM08", "N2CAM08", "CAM", 0.58968, 0.39001],
+      ["N2CAM09", "N2CAM09", "CAM", 0.67071, 0.53089],
+      ["N2CAM10", "N2CAM10", "CAM", 0.68282, 0.53334],
+      ["N2CAMGE01", "N2CAMGE01", "CGE", 0.34309, 0.44495],
+      ["N2CAMGE02", "N2CAMGE02", "CGE", 0.45019, 0.53251],
+      ["N2CAMGE03", "N2CAMGE03", "CGE", 0.34326, 0.54225],
+      ["N2CAMPS01", "N2CAMPS01", "CPS", 0.58916, 0.34286],
+      ["N2CAMPS02", "N2CAMPS02", "CPS", 0.63459, 0.34145],
+      ["N2CAMPS03", "N2CAMPS03", "CPS", 0.68225, 0.34286],
+      ["N2CAMPS04", "N2CAMPS04", "CPS", 0.58985, 0.19552],
+      ["N2CAMPS05", "N2CAMPS05", "CPS", 0.63283, 0.19322],
+      ["N2CAMPS06", "N2CAMPS06", "CPS", 0.67669, 0.19252],
+      ["N2CAMPS07", "N2CAMPS07", "CPS", 0.72068, 0.19252],
+      ["N2CAMPS08", "N2CAMPS08", "CPS", 0.8264, 0.29093],
+      ["N2CAMPS09", "N2CAMPS09", "CPS", 0.84195, 0.29263],
+      ["N2CAMPS10", "N2CAMPS10", "CPS", 0.78888, 0.35527],
+      ["N2CAMPS11", "N2CAMPS11", "CPS", 0.80111, 0.37878],
+      ["N2CAMPS12", "N2CAMPS12", "CPS", 0.84956, 0.37838]
+    ] },
+  { id: 'vyd', nombre: 'Voz y Datos', corto: 'Voz y Datos', plano: 'plano-vozydatos.png',
+    cats: [
+      ["AP", "Access point", "#2563eb"],
+      ["ND", "Nodo de datos", "#f97316"]
+    ],
+    disp: [
+      ["N2AP01", "N2AP01", "AP", 0.27667, 0.46465],
+      ["N2AP02", "N2AP02", "AP", 0.39247, 0.58514],
+      ["N2AP03", "N2AP03", "AP", 0.22472, 0.62496],
+      ["N2AP04", "N2AP04", "AP", 0.22464, 0.84201],
+      ["N2AP05", "N2AP05", "AP", 0.57675, 0.62496],
+      ["N2AP06", "N2AP06", "AP", 0.76412, 0.62496],
+      ["N2AP07", "N2AP07", "AP", 0.73483, 0.28108],
+      ["N2AP08", "N2AP08", "AP", 0.50486, 0.24886],
+      ["N2D01", "N2D01", "ND", 0.8415, 0.59272],
+      ["N2D02", "N2D02", "ND", 0.54171, 0.53651],
+      ["N2D03", "N2D03", "ND", 0.54357, 0.53651],
+      ["N2D04", "N2D04", "ND", 0.79351, 0.37091],
+      ["N2D05", "N2D05", "ND", 0.72025, 0.33846],
+      ["N2D06", "N2D06", "ND", 0.72025, 0.3416],
+      ["N2D07", "N2D07", "ND", 0.72008, 0.34385],
+      ["N2D08", "N2D08", "ND", 0.69654, 0.31708],
+      ["N2D09", "N2D09", "ND", 0.65277, 0.31708],
+      ["N2D10", "N2D10", "ND", 0.60877, 0.31708],
+      ["N2D11", "N2D11", "ND", 0.72056, 0.21487],
+      ["N2D12", "N2D12", "ND", 0.67598, 0.21553],
+      ["N2D13", "N2D13", "ND", 0.6322, 0.21487],
+      ["N2D14", "N2D14", "ND", 0.62812, 0.21482],
+      ["N2D15", "N2D15", "ND", 0.44357, 0.27837],
+      ["N2D16", "N2D16", "ND", 0.61972, 0.39549],
+      ["N2D17", "N2D17", "ND", 0.29204, 0.22935],
+      ["N2D18", "N2D18", "ND", 0.45328, 0.46047]
+    ] }
+];
+
+(() => {
+  const W = 4800, H = 3914, PXM = 4800 / 65; // px de imagen por metro
+  const CFG = window.CONFIG || {};
+  const API = (CFG.API_URL || '').trim(), CLAVE = CFG.CLAVE || '', OBRA = CFG.OBRA || '';
+  const CAM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+  const thumb = (id, w) => `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w${w}`;
+  const $ = id => document.getElementById(id);
+  const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const store = { get(k, d){ try { const v = localStorage.getItem('lev02:' + k); return v == null ? d : JSON.parse(v); } catch (e){ return d; } }, set(k, v){ try { localStorage.setItem('lev02:' + k, JSON.stringify(v)); } catch (e){} } };
+
+  // Preparar servicios
+  SERVICIOS.forEach(sv => {
+    sv.catMap = Object.fromEntries(sv.cats.map(([id, nombre, color]) => [id, { id, nombre, color }]));
+    const ord = Object.fromEntries(sv.cats.map((c, i) => [c[0], i]));
+    sv.items = sv.disp.map(([key, tag, cat, x, y, alias]) => ({ key, tag, cat, x, y, alias: alias || [], sv })).sort((a, b) => (ord[a.cat] - ord[b.cat]) || a.tag.localeCompare(b.tag));
+    sv.oculto = new Set(store.get('oculto:' + sv.id, []));
+  });
+
+  let svc = SERVICIOS.find(s => s.id === store.get('svc', 'dh')) || SERVICIOS[0];
+  let fotos = {}, filtro = 'pend', q = '', sel = null, busy = false, ready = false, pendiente = null;
+  let optLabels = store.get('labels', false), optSize = store.get('size', 12), optMode = store.get('mode', 'avance');
+  const nF = d => (fotos[d.key] || []).length;
+  const visibles = () => svc.items.filter(d => !svc.oculto.has(d.cat));
+
+  function toast(msg, ms = 2600){ const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, ms); }
+
+  // ---------------- Visor con zoom ----------------
+  const vp = $('vp'), img = $('plano'), pinsEl = $('pins');
+  let S = 0.1, TX = 0, TY = 0, FIT = 0.1; const MAX = 1.6;
+  let pinEls = {};
+
+  function buildPins(){
+    pinsEl.innerHTML = ''; pinEls = {};
+    for (const d of svc.items){
+      const el = document.createElement('div'); el.className = 'pin';
+      el.style.setProperty('--c', svc.catMap[d.cat].color);
+      if (d.cat === 'CR') el.classList.add('box');
+      el.innerHTML = `<b></b><em>${esc(d.tag)}</em>`;
+      pinsEl.appendChild(el); pinEls[d.key] = el;
+    }
+  }
+  const rect = () => vp.getBoundingClientRect();
+  function fitView(){ const r = rect(); FIT = Math.min(r.width / W, r.height / H); S = FIT; TX = (r.width - W*S)/2; TY = (r.height - H*S)/2; apply(); }
+  function clampT(){
+    const r = rect(), w = W*S, h = H*S, m = 80;
+    TX = w <= r.width ? (r.width - w)/2 : Math.min(m, Math.max(r.width - w - m, TX));
+    TY = h <= r.height ? (r.height - h)/2 : Math.min(m, Math.max(r.height - h - m, TY));
+  }
+  function zoomAt(f, cx, cy){ const ns = Math.max(FIT, Math.min(MAX, S*f)), k = ns/S; TX = cx - (cx - TX)*k; TY = cy - (cy - TY)*k; S = ns; clampT(); apply(); }
+  let raf = 0;
+  function apply(){ if (raf) return; raf = requestAnimationFrame(() => { raf = 0; img.style.transform = `translate(${TX}px,${TY}px) scale(${S})`; placePins(); }); }
+  function curSize(){ return Math.max(12, Math.min(40, S*PXM*0.8)); }
+  // Acomodo de etiquetas: cada una busca un lugar donde no tape a otra etiqueta ni a otro dispositivo
+  function acomodar(list, gap){
+    const placed = [], obst = list.map(o => ({ x: o.x - o.r, y: o.y - o.r, w: 2*o.r, h: 2*o.r }));
+    const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    const order = list.map((o, i) => i).sort((i, j) => list[i].y - list[j].y || list[i].x - list[j].x);
+    const res = new Array(list.length);
+    for (const i of order){
+      const o = list[i]; let best = null, bestScore = Infinity;
+      for (const k of [0, 1, -1, 2, -2, 3, -3, 4, -4]){
+        for (const side of [1, -1]){
+          const x = side > 0 ? o.x + o.r + gap : o.x - o.r - gap - o.w;
+          const y = o.y - o.h/2 + k*(o.h + 2);
+          const r = { x, y, w: o.w, h: o.h };
+          let score = Math.abs(k)*3 + (side < 0 ? 1 : 0);
+          for (const p of placed) if (hit(r, p)) score += 100;
+          obst.forEach((p, j) => { if (j !== i && hit(r, p)) score += 40; });
+          if (score < bestScore){ bestScore = score; best = r; }
+          if (score < 3) break;
+        }
+        if (bestScore < 3) break;
+      }
+      placed.push(best); res[i] = { dx: best.x - o.x, dy: best.y - o.y };
+    }
+    return res;
+  }
+  const anchoEt = {};
+  function placePins(){
+    const sz = curSize();
+    pinsEl.style.setProperty('--sz', sz + 'px');
+    const big = S*PXM >= 45; pinsEl.classList.toggle('big', big);
+    const vis = [];
+    for (const d of svc.items){
+      const el = pinEls[d.key], px = TX + d.x*W*S, py = TY + d.y*H*S;
+      el.style.transform = `translate(${px}px,${py}px)`;
+      if (!el.hidden) vis.push({ d, el, x: px, y: py });
+    }
+    if (!(optLabels || big)){ vis.forEach(v => { const em = v.el.querySelector('em'); if (em.style.left){ em.style.left = ''; em.style.top = ''; em.style.transform = ''; } }); return; }
+    const h = optSize + 8;
+    const list = vis.map(v => { const k = v.d.key + '|' + optSize; if (!anchoEt[k]) anchoEt[k] = v.el.querySelector('em').offsetWidth || (v.d.tag.length * optSize * 0.62 + 12); return { x: v.x, y: v.y, r: sz/2 + 2, w: anchoEt[k], h }; });
+    const pos = acomodar(list, 4);
+    vis.forEach((v, i) => { const em = v.el.querySelector('em'); em.style.left = pos[i].dx + 'px'; em.style.top = pos[i].dy + 'px'; em.style.transform = 'none'; });
+  }
+  function flyTo(d){
+    const r = rect(); S = Math.max(S, Math.min(MAX, 55/PXM));
+    TX = r.width/2 - d.x*W*S; TY = r.height*0.42 - d.y*H*S; clampT(); apply();
+  }
+
+  const pts = new Map(); let start = null, moved = false, pinch = null, lastTap = 0;
+  const enControl = t => t.closest('button, .panel, input, label');
+  vp.addEventListener('pointerdown', e => {
+    if (enControl(e.target)) return;
+    vp.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    hideHint();
+    if (pts.size === 1){ start = { x: e.clientX, y: e.clientY, tx: TX, ty: TY }; moved = false; }
+    else if (pts.size === 2){ const [a, b] = [...pts.values()], r = rect(); pinch = { d: Math.hypot(a.x-b.x, a.y-b.y), mx: (a.x+b.x)/2 - r.left, my: (a.y+b.y)/2 - r.top }; moved = true; }
+  });
+  vp.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size >= 2 && pinch){
+      const [a, b] = [...pts.values()], r = rect();
+      const d = Math.hypot(a.x-b.x, a.y-b.y), mx = (a.x+b.x)/2 - r.left, my = (a.y+b.y)/2 - r.top;
+      zoomAt(d / pinch.d, mx, my); TX += mx - pinch.mx; TY += my - pinch.my; clampT(); apply();
+      pinch = { d, mx, my };
+    } else if (pts.size === 1 && start){
+      const dx = e.clientX - start.x, dy = e.clientY - start.y;
+      if (!moved && Math.hypot(dx, dy) > 7){ moved = true; vp.classList.add('drag'); }
+      if (moved){ TX = start.tx + dx; TY = start.ty + dy; clampT(); apply(); }
+    }
+  });
+  function endPtr(e){
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if (pts.size === 1){ const p = [...pts.values()][0]; start = { x: p.x, y: p.y, tx: TX, ty: TY }; pinch = null; }
+    if (pts.size === 0){
+      vp.classList.remove('drag');
+      if (!moved && e.type === 'pointerup') tap(e.clientX, e.clientY);
+      start = null; pinch = null;
+    }
+  }
+  vp.addEventListener('pointerup', endPtr); vp.addEventListener('pointercancel', endPtr);
+  vp.addEventListener('wheel', e => { if (e.target.closest('.panel')) return; e.preventDefault(); const r = rect(); zoomAt(Math.exp(-e.deltaY * 0.0016), e.clientX - r.left, e.clientY - r.top); hideHint(); }, { passive: false });
+
+  function tap(cx, cy){
+    if (!$('panel').hidden){ togglePanel(false); return; }
+    const r = rect(), x = cx - r.left, y = cy - r.top, rad = Math.max(22, curSize()/2 + 8);
+    const near = visibles().map(d => ({ d, dist: Math.hypot(TX + d.x*W*S - x, TY + d.y*H*S - y) })).filter(o => o.dist <= rad).map(o => ({ ...o, rank: o.dist + (o.d.cat === 'CR' ? 8 : 0) })).sort((a, b) => a.rank - b.rank);
+    const now = Date.now();
+    if (near.length === 0){ if (now - lastTap < 320){ zoomAt(2.2, x, y); lastTap = 0; } else lastTap = now; return; }
+    if (near.length > 1 && S*PXM < 40 && near[1].rank - near[0].rank < 10 && near[1].d.cat !== 'CR'){ zoomAt(2.6, x, y); return; }
+    select(near[0].d);
+  }
+
+  $('zIn').onclick = () => { const r = rect(); zoomAt(1.8, r.width/2, r.height/2); };
+  $('zOut').onclick = () => { const r = rect(); zoomAt(1/1.8, r.width/2, r.height/2); };
+  $('zFit').onclick = fitView;
+  $('zFull').onclick = () => {
+    const full = vp.classList.toggle('full');
+    document.body.style.overflow = full ? 'hidden' : '';
+    $('zFull').setAttribute('aria-label', full ? 'Salir de pantalla completa' : 'Pantalla completa');
+    requestAnimationFrame(fitView);
+  };
+  let hintHidden = false;
+  function hideHint(){ if (hintHidden) return; hintHidden = true; $('hint').style.opacity = 0; setTimeout(() => $('hint').hidden = true, 450); }
+  setTimeout(hideHint, 6000);
+  window.addEventListener('resize', () => { const wasFit = S <= FIT * 1.01; const r = rect(); FIT = Math.min(r.width / W, r.height / H); if (wasFit) fitView(); else { clampT(); apply(); } });
+
+  // ---------------- Pestañas ----------------
+  function renderTabs(){
+    $('tabs').innerHTML = SERVICIOS.map(s => `<button type="button" class="tab" role="tab" aria-selected="${s === svc}" data-id="${s.id}">${esc(s.corto)} <small>${s.items.filter(d => nF(d) > 0).length}/${s.items.length}</small></button>`).join('');
+  }
+  $('tabs').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) cambiarServicio(b.dataset.id); });
+  function cambiarServicio(id){
+    const s = SERVICIOS.find(x => x.id === id); if (!s || s === svc) return;
+    svc = s; store.set('svc', id); sel = null; pendiente = null; $('sheet').hidden = true; q = ''; $('q').value = '';
+    cargarServicio();
+  }
+  function cargarServicio(){
+    $('svcTitle').textContent = svc.nombre;
+    img.src = svc.plano;
+    buildPins(); renderPanel(); renderAll(); fitView();
+  }
+
+  // ---------------- Panel de capas ----------------
+  function togglePanel(open){
+    const p = $('panel'); const o = open ?? p.hidden; if (o) renderPanel(); p.hidden = !o;
+    $('panelBtn').setAttribute('aria-expanded', String(o));
+  }
+  $('panelBtn').onclick = () => togglePanel();
+  $('panelClose').onclick = () => togglePanel(false);
+  function applyOpts(){
+    $('optLabels').checked = optLabels;
+    pinsEl.classList.toggle('lbl', optLabels);
+    pinsEl.style.setProperty('--lf', optSize + 'px'); apply();
+    vp.classList.toggle('mode-avance', optMode === 'avance'); vp.classList.toggle('mode-cat', optMode === 'cat');
+    [...$('optSize').children].forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === optSize)));
+    [...$('optMode').children].forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === optMode)));
+  }
+  $('optLabels').onchange = e => { optLabels = e.target.checked; store.set('labels', optLabels); applyOpts(); };
+  $('optSize').onclick = e => { const b = e.target.closest('button'); if (!b) return; optSize = +b.dataset.v; store.set('size', optSize); applyOpts(); };
+  $('optMode').onclick = e => { const b = e.target.closest('button'); if (!b) return; optMode = b.dataset.v; store.set('mode', optMode); applyOpts(); };
+  function renderPanel(){
+    $('cats').innerHTML = svc.cats.map(([id, nombre, color]) => {
+      const all = svc.items.filter(d => d.cat === id), done = all.filter(d => nF(d) > 0).length;
+      return `<li><label><input type="checkbox" data-cat="${id}" ${svc.oculto.has(id) ? '' : 'checked'}><span class="dot" style="--c:${color}${id === 'CR' ? ';border-radius:3px' : ''}"></span><span>${esc(nombre)}</span><span class="n">${all.length}<small>${done} con foto</small></span></label></li>`;
+    }).join('');
+    $('totVis').textContent = visibles().length + ' de ' + svc.items.length;
+  }
+  $('cats').addEventListener('change', e => {
+    const c = e.target.dataset.cat; if (!c) return;
+    e.target.checked ? svc.oculto.delete(c) : svc.oculto.add(c);
+    store.set('oculto:' + svc.id, [...svc.oculto]);
+    if (sel && svc.oculto.has(sel.cat)) closeSheet();
+    renderPanel(); renderAll();
+  });
+  $('catAll').onclick = () => { svc.oculto.clear(); store.set('oculto:' + svc.id, []); renderPanel(); renderAll(); };
+  $('catNone').onclick = () => { svc.cats.forEach(c => svc.oculto.add(c[0])); store.set('oculto:' + svc.id, [...svc.oculto]); closeSheet(); renderPanel(); renderAll(); };
+
+  // ---------------- Vistas ----------------
+  function select(d){ sel = d; if (pendiente && pendiente.d !== d) pendiente = null; renderPins(); renderSheet(); $('sheet').hidden = false; }
+  function closeSheet(){ sel = null; $('sheet').hidden = true; renderPins(); }
+  $('sClose').onclick = closeSheet;
+
+  function renderPins(){
+    for (const d of svc.items){
+      const el = pinEls[d.key]; if (!el) continue;
+      if (el.hidden !== svc.oculto.has(d.cat)) { el.hidden = svc.oculto.has(d.cat); apply(); }
+      el.classList.toggle('done', nF(d) > 0); el.classList.toggle('sel', sel === d);
+    }
+  }
+  function renderSheet(){
+    if (!sel) return;
+    const n = nF(sel), arr = fotos[sel.key] || [];
+    $('sTag').textContent = sel.tag;
+    $('sTipo').textContent = `${svc.catMap[sel.cat].nombre} · ${svc.nombre}`;
+    $('sChip').className = 'chip ' + (n ? 'ok' : 'pend');
+    $('sChip').textContent = n ? (n === 1 ? 'Listo · 1 foto' : `Listo · ${n} fotos`) : 'Falta foto';
+    $('sThumbs').innerHTML = arr.map((f, i) => `<button type="button" data-i="${i}" aria-label="Ver foto ${i+1}"><img src="${thumb(f.id, 200)}" alt="" loading="lazy" referrerpolicy="no-referrer"></button>`).join('');
+    const fallo = !!(pendiente && pendiente.d === sel && !busy);
+    $('sWarn').hidden = !fallo; $('sRetry').hidden = !fallo;
+    const b = $('sCam'); b.disabled = busy; b.hidden = fallo;
+    b.innerHTML = busy ? `${CAM}<span>Subiendo…</span>` : `${CAM}<span>${n ? 'Tomar otra foto' : 'Tomar foto de ' + esc(sel.tag)}</span>`;
+  }
+  function renderAll(){
+    const vis = visibles(), total = vis.length, done = vis.filter(d => nF(d) > 0).length;
+    $('barFill').style.width = total ? (done / total * 100) + '%' : '0';
+    $('countText').textContent = !ready && API ? 'Cargando fotos…' : `${done} de ${total} con foto` + (total && done === total ? ' · ¡Completo!' : '');
+    $('fPend').textContent = `Faltan ${total - done}`; $('fDone').textContent = `Listos ${done}`;
+    renderTabs(); renderPins(); renderSheet(); applyOpts();
+    if (!$('panel').hidden) renderPanel();
+    const qq = q.trim().toLowerCase();
+    const lista = vis.filter(d => qq ? (d.tag.toLowerCase().includes(qq) || svc.catMap[d.cat].nombre.toLowerCase().includes(qq)) : (filtro === 'pend' ? nF(d) === 0 : nF(d) > 0));
+    $('list').innerHTML = lista.map(d => { const n = nF(d); return `<li><button type="button" class="${n ? 'done' : ''}" data-key="${esc(d.key)}"><span class="lt">${esc(d.tag)}</span><span class="ls">${esc(svc.catMap[d.cat].nombre)} · ${n ? (n === 1 ? '1 foto' : n + ' fotos') : 'falta foto'}</span></button></li>`; }).join('');
+    const le = $('listEmpty'); le.hidden = lista.length > 0;
+    le.textContent = qq ? `No hay ningún dispositivo «${q}».` : (total === 0 ? 'No hay categorías visibles. Actívalas en «Capas y conteo».' : filtro === 'pend' ? 'Ya todos los dispositivos visibles tienen foto.' : 'Todavía no hay dispositivos con foto.');
+    const next = vis.find(d => nF(d) === 0);
+    $('nextBtn').hidden = !next || !API || (!ready);
+    if (next){ $('nextBtn').innerHTML = `${CAM}<span>Siguiente: ${esc(next.tag)}</span>`; $('nextBtn').dataset.key = next.key; }
+  }
+  const byKey = k => svc.items.find(d => d.key === k);
+  $('nextBtn').onclick = () => { const d = byKey($('nextBtn').dataset.key); if (d){ flyTo(d); select(d); } };
+  $('list').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const d = byKey(b.dataset.key); if (d){ vp.scrollIntoView({ block: 'start', behavior: 'smooth' }); flyTo(d); select(d); } });
+  $('q').addEventListener('input', e => { q = e.target.value; renderAll(); });
+  $('fPend').onclick = () => { filtro = 'pend'; $('fPend').setAttribute('aria-pressed','true'); $('fDone').setAttribute('aria-pressed','false'); renderAll(); };
+  $('fDone').onclick = () => { filtro = 'done'; $('fDone').setAttribute('aria-pressed','true'); $('fPend').setAttribute('aria-pressed','false'); renderAll(); };
+
+  // ---------------- Exportar plano a PNG ----------------
+  $('exportBtn').onclick = async () => {
+    const b = $('exportBtn'); b.disabled = true; toast('Generando imagen…', 20000);
+    try {
+      if (!img.complete || !img.naturalWidth) await new Promise(r => img.addEventListener('load', r, { once: true }));
+      const vis = visibles();
+      const head = 170, side = 1150, cw = W + side, ch = Math.max(H + head, head + 300 + svc.cats.length * 90);
+      const k = Math.min(1, Math.sqrt(16000000 / (cw * ch)));          // límite para celulares
+      const cv = document.createElement('canvas'); cv.width = Math.round(cw * k); cv.height = Math.round(ch * k);
+      const c = cv.getContext('2d'); c.scale(k, k);
+      c.fillStyle = '#fff'; c.fillRect(0, 0, cw, ch);
+      // Encabezado
+      c.fillStyle = '#1c2125'; c.fillRect(0, 0, cw, head);
+      c.fillStyle = '#fff'; c.textBaseline = 'middle';
+      c.font = '700 74px "Barlow Condensed", "Arial Narrow", sans-serif';
+      c.fillText(`${svc.nombre}${OBRA ? ' · ' + OBRA : ''}`, 50, head / 2 - 8);
+      c.font = '500 34px "Barlow", sans-serif'; c.textAlign = 'right';
+      c.fillText(new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }), cw - 50, head / 2);
+      c.textAlign = 'left';
+      // Plano
+      c.drawImage(img, 0, head, W, H);
+      // Marcadores
+      const R = 24;
+      const orden = [...vis.filter(d => d.cat === 'CR'), ...vis.filter(d => d.cat !== 'CR')];
+      for (const d of orden){
+        const x = d.x * W, y = head + d.y * H, done = nF(d) > 0;
+        const fill = optMode === 'avance' ? (done ? '#1f8f4e' : '#f5b700') : svc.catMap[d.cat].color;
+        if (d.cat === 'CR'){ const q = R * 0.72; c.fillStyle = '#fff'; c.fillRect(x - q - 4, y - q - 4, 2*q + 8, 2*q + 8); c.fillStyle = fill; c.fillRect(x - q, y - q, 2*q, 2*q); c.lineWidth = 4; c.strokeStyle = '#1c2125'; c.strokeRect(x - q, y - q, 2*q, 2*q); }
+        else { c.beginPath(); c.arc(x, y, R + 4, 0, Math.PI * 2); c.fillStyle = '#fff'; c.fill();
+        c.beginPath(); c.arc(x, y, R, 0, Math.PI * 2); c.fillStyle = fill; c.fill(); c.lineWidth = 4; c.strokeStyle = '#1c2125'; c.stroke(); }
+        if (done){ c.fillStyle = optMode === 'avance' ? '#fff' : '#fff'; c.font = '700 30px "Barlow", sans-serif'; c.textAlign = 'center'; c.fillText('✓', x, y + 1); c.textAlign = 'left'; }
+      }
+      if (optLabels){
+        const fs = Math.round(optSize * 2.3), lh = Math.round(fs * 1.4);
+        c.font = `600 ${fs}px "IBM Plex Mono", monospace`;
+        const list = orden.map(d => ({ x: d.x * W, y: head + d.y * H, r: R + 4, w: c.measureText(d.tag).width + 14, h: lh }));
+        const pos = acomodar(list, 8);
+        orden.forEach((d, i) => {
+          const o = list[i], lx = o.x + pos[i].dx, ly = o.y + pos[i].dy;
+          if (pos[i].dy < -o.h/2 - 1 || pos[i].dy > -o.h/2 + 1){ // etiqueta desplazada: línea guía
+            c.strokeStyle = '#1c2125'; c.lineWidth = 3; c.beginPath(); c.moveTo(o.x, o.y);
+            c.lineTo(pos[i].dx > 0 ? lx : lx + o.w, ly + o.h/2); c.stroke();
+          }
+          c.fillStyle = '#1c2125'; roundRect(c, lx, ly, o.w, o.h, 6); c.fill();
+          c.fillStyle = '#fff'; c.textBaseline = 'middle'; c.fillText(d.tag, lx + 7, ly + o.h/2 + 1);
+        });
+      }
+      // Tabla de conteo
+      const sx = W + 60; let sy = head + 80;
+      c.fillStyle = '#1c2125'; c.font = '700 54px "Barlow Condensed", sans-serif'; c.fillText('Conteo de dispositivos', sx, sy); sy += 90;
+      c.font = '500 36px "Barlow", sans-serif';
+      let tot = 0;
+      for (const [id, nombre, color] of svc.cats){
+        if (svc.oculto.has(id)) continue;
+        const n = svc.items.filter(d => d.cat === id).length; tot += n;
+        c.fillStyle = optMode === 'avance' ? '#f5b700' : color; c.lineWidth = 4; c.strokeStyle = '#1c2125';
+        if (id === 'CR'){ c.fillRect(sx + 6, sy - 14, 28, 28); c.strokeRect(sx + 6, sy - 14, 28, 28); } else { c.beginPath(); c.arc(sx + 20, sy, 18, 0, Math.PI * 2); c.fill(); c.stroke(); }
+        c.fillStyle = '#1c2125'; c.font = '500 36px "Barlow", sans-serif'; c.fillText(nombre, sx + 60, sy);
+        c.font = '600 38px "IBM Plex Mono", monospace'; c.textAlign = 'right'; c.fillText(String(n), cw - 60, sy); c.textAlign = 'left';
+        sy += 76;
+      }
+      c.fillStyle = '#1c2125'; c.fillRect(sx, sy - 30, cw - 60 - sx, 4); sy += 30;
+      c.font = '700 40px "Barlow", sans-serif'; c.fillText('Total', sx, sy);
+      c.font = '600 40px "IBM Plex Mono", monospace'; c.textAlign = 'right'; c.fillText(String(tot), cw - 60, sy); c.textAlign = 'left';
+      if (optMode === 'avance'){
+        sy += 110; c.font = '500 32px "Barlow", sans-serif';
+        [['#f5b700', 'Falta foto'], ['#1f8f4e', 'Con foto']].forEach(([col, t]) => { c.beginPath(); c.arc(sx + 20, sy, 16, 0, Math.PI*2); c.fillStyle = col; c.fill(); c.lineWidth = 4; c.strokeStyle = '#1c2125'; c.stroke(); c.fillStyle = '#1c2125'; c.fillText(t, sx + 60, sy); sy += 64; });
+      }
+      const blob = await new Promise((ok, bad) => cv.toBlob(x => x ? ok(x) : bad(new Error('blob')), 'image/png'));
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = `${(OBRA || 'Plano').replace(/\s+/g, '')}_${svc.corto.replace(/\s+/g, '')}_${new Date().toISOString().slice(0,10)}.png`;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      toast('Imagen descargada ✓');
+    } catch (e){ toast('No se pudo generar la imagen.'); }
+    b.disabled = false;
+  };
+  function roundRect(c, x, y, w, h, r){ c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+
+  // ---------------- Google Drive ----------------
+  async function cargar(){
+    if (!API) return;
+    try {
+      const r = await fetch(`${API}?clave=${encodeURIComponent(CLAVE)}&t=${Date.now()}`);
+      const j = await r.json();
+      if (!j.ok){ aviso(j.error === 'clave' ? `La clave ("${CLAVE}") no coincide con la del script de Google que termina en …${API.slice(-12)}.` : 'El script de Google respondió con un error.'); return; }
+      fotos = j.fotos || {};
+      SERVICIOS.forEach(sv => sv.items.forEach(d => { if (d.alias.length){ const extra = d.alias.flatMap(a => fotos[a] || []); if (extra.length) fotos[d.key] = [...(fotos[d.key] || []), ...extra]; } }));
+      ready = true; $('notice').hidden = true; renderAll();
+    } catch (e){ if (!ready) aviso('No se pudo conectar con Google Drive. Revisa tu conexión.'); }
+  }
+  function aviso(t){ const n = $('notice'); n.textContent = t; n.hidden = false; }
+  const aBase64 = blob => new Promise((ok, bad) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = bad; fr.readAsDataURL(blob); });
+  async function subir(blob, d){
+    const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ clave: CLAVE, sensor: d.key, servicio: d.sv.nombre, imagen: await aBase64(blob) }) });
+    const j = await r.json(); if (!j.ok) throw new Error(j.error || 'error');
+    (fotos[d.key] = fotos[d.key] || []).push({ id: j.id, at: new Date().toISOString() });
+  }
+  async function intentar(blob, d){
+    busy = true; renderSheet(); toast(`Subiendo foto de ${d.tag}…`, 90000);
+    try { await subir(blob, d); pendiente = null; toast(`Foto de ${d.tag} guardada ✓`); }
+    catch (e){ pendiente = { blob, d }; toast(e.message === 'clave' ? 'La clave no coincide. Avisa a tu supervisor.' : 'No se pudo subir la foto.', 4000); }
+    finally { busy = false; renderAll(); }
+  }
+
+  // ---------------- Foto ----------------
+  $('sCam').onclick = () => {
+    if (busy || !sel) return;
+    if (!API){ toast('Para tomar fotos falta la URL del script de Google en la configuración.', 4500); return; }
+    $('cam').value = ''; $('cam').click();
+  };
+  $('rRetry').onclick = () => { if (pendiente && !busy) intentar(pendiente.blob, pendiente.d); };
+  $('rSave').onclick = () => {
+    if (!pendiente) return;
+    const a = document.createElement('a'); a.href = URL.createObjectURL(pendiente.blob);
+    a.download = `${pendiente.d.key}_${Date.now()}.jpg`; document.body.appendChild(a); a.click(); a.remove();
+    toast('Foto guardada en el teléfono. Mándasela a tu supervisor.', 4000);
+  };
+  function loadImg(file){ return new Promise((ok, bad) => { const u = URL.createObjectURL(file), im = new Image(); im.onload = () => { ok(im); URL.revokeObjectURL(u); }; im.onerror = () => { bad(new Error('img')); URL.revokeObjectURL(u); }; im.src = u; }); }
+  async function procesar(file, d){
+    const im = await loadImg(file);
+    const sc = Math.min(1, 1800 / Math.max(im.naturalWidth, im.naturalHeight));
+    const w = Math.round(im.naturalWidth * sc), h = Math.round(im.naturalHeight * sc);
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const cx = cv.getContext('2d');
+    cx.drawImage(im, 0, 0, w, h);
+    const band = Math.max(42, Math.round(Math.min(w, h) * 0.075));
+    cx.fillStyle = 'rgba(0,0,0,0.65)'; cx.fillRect(0, h - band, w, band);
+    cx.fillStyle = '#fff'; cx.textBaseline = 'middle';
+    cx.font = `700 ${Math.round(band*0.56)}px "IBM Plex Mono", monospace`;
+    cx.fillText(d.tag, band*0.3, h - band/2);
+    const tw = cx.measureText(d.tag).width;
+    cx.font = `500 ${Math.round(band*0.36)}px "Barlow", sans-serif`;
+    const fecha = new Date().toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' });
+    cx.fillText([svc.catMap[d.cat].nombre, svc.nombre, OBRA, fecha].filter(Boolean).join(' · '), band*0.3 + tw + band*0.5, h - band/2, Math.max(10, w - tw - band*1.2));
+    if (img.complete && img.naturalWidth){
+      const ins = Math.round(Math.min(w, h) * 0.3), pad = Math.round(ins * 0.06), R = 5 * PXM;
+      const px = d.x * img.naturalWidth, py = d.y * img.naturalHeight, x0 = w - ins - pad, y0 = pad;
+      cx.fillStyle = '#fff'; cx.fillRect(x0 - 4, y0 - 4, ins + 8, ins + 8);
+      cx.drawImage(img, px - R, py - R, R*2, R*2, x0, y0, ins, ins);
+      cx.strokeStyle = '#1d6fe0'; cx.lineWidth = Math.max(3, ins*0.025);
+      cx.beginPath(); cx.arc(x0 + ins/2, y0 + ins/2, ins*0.09, 0, Math.PI*2); cx.stroke();
+      cx.strokeStyle = '#1c2125'; cx.lineWidth = 2; cx.strokeRect(x0 - 4, y0 - 4, ins + 8, ins + 8);
+    }
+    return await new Promise((ok, bad) => cv.toBlob(b => b ? ok(b) : bad(new Error('blob')), 'image/jpeg', 0.82));
+  }
+  $('cam').addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0], d = sel;
+    if (!file || !d) return;
+    let blob; try { blob = await procesar(file, d); } catch (err){ toast('No se pudo leer la foto. Tómala otra vez.'); return; }
+    intentar(blob, d);
+  });
+
+  // ---------------- Visor de fotos ----------------
+  function cerrarLB(){ $('lb').hidden = true; $('lbImg').removeAttribute('src'); }
+  $('lbClose').onclick = cerrarLB;
+  document.addEventListener('keydown', e => { if (e.key === 'Escape'){ if (!$('lb').hidden) cerrarLB(); else if (!$('panel').hidden) togglePanel(false); else if (!$('sheet').hidden) closeSheet(); else if (vp.classList.contains('full')) $('zFull').click(); } });
+  $('sThumbs').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || !sel) return;
+    const i = +b.dataset.i, f = fotos[sel.key][i];
+    $('lbImg').referrerPolicy = 'no-referrer';
+    $('lbImg').src = thumb(f.id, 1600); $('lbTitle').textContent = sel.tag + (nF(sel) > 1 ? ` · ${i+1}` : ''); $('lb').hidden = false;
+  });
+
+  // ---------------- Arranque ----------------
+  img.addEventListener('load', fitView);
+  cargarServicio();
+  if (!API) aviso('Modo visor: puedes ver planos, etiquetas, conteos y exportar. Para tomar fotos pega la URL del script de Google en la configuración.');
+  else { cargar(); setInterval(() => { if (!busy && document.visibilityState === 'visible') cargar(); }, 30000); }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && API) cargar(); });
+})();
+</script>
+</body>
+</html>
